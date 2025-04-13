@@ -1,57 +1,79 @@
 import SwiftUI
 struct ContentView: View {
-    @State private var paths: [DrawingPath] = []
-    @State private var redoStack: [DrawingPath] = []
+    @Environment(\.undoManager) private var undoManager
+    @StateObject private var viewModel = DrawingViewModel()
     @State private var selectedColor: Color = .black
-    @State private var recentColors: [Color] = []
-    @State private var lineWidth: CGFloat = 3.0
+    @State private var currentPoints: [CGPoint] = []
 
     let defaultColors: [Color] = [.black, .red, .blue, .green, .orange, .purple, .yellow, .gray]
 
     var body: some View {
-        VStack(spacing: 10) {
-            ColorPaletteView(
-                defaultColors: defaultColors,
-                recentColors: recentColors,
-                onSelect: { color in
-                    selectedColor = color
-                    updateRecentColors(color)
-                }
-            )
-            .padding(.top)
-
+        VStack {
+            // 색상 선택
             HStack {
-                Button("Undo") { undo() }
-                Button("Redo") { redo() }
-                Slider(value: $lineWidth, in: 1...10) {
-                    Text("Line Width")
-                }.frame(width: 150)
+                ForEach(defaultColors, id: \.self) { color in
+                    Circle()
+                        .fill(color)
+                        .frame(width: 24, height: 24)
+                        .onTapGesture {
+                            selectedColor = color
+                        }
+                        .overlay(
+                            Circle()
+                                .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 2)
+                        )
+                }
             }
+            HStack {
+                Button("Undo") {
+                    viewModel.undo(using: undoManager)
+                }
+                .disabled(viewModel.paths.isEmpty)
 
-            CanvasView(paths: $paths, selectedColor: selectedColor, lineWidth: lineWidth) { newPath in
-                redoStack.removeAll()
+                Button("Redo") {
+                    viewModel.redo(using: undoManager)
+                }
+                .disabled(!viewModel.canRedo)
             }
+            
+            
+            .padding()
+
+            // 그림 영역
+            ZStack {
+                ForEach(viewModel.paths) { path in
+                    Path { p in p.addLines(path.points) }
+                        .stroke(path.color, lineWidth: 2)
+                }
+
+                Path { p in p.addLines(currentPoints) }
+                    .stroke(selectedColor, lineWidth: 2)
+            }
+            .background(Color.white)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        currentPoints.append(value.location)
+                    }
+                    .onEnded { _ in
+                        let newPath = DrawingPath(points: currentPoints, color: selectedColor, lineWidth: 2)
+                        viewModel.addPath(newPath, using: undoManager)
+                        currentPoints = []
+                    }
+            )
             .border(Color.gray)
         }
         .padding()
-    }
-
-    private func undo() {
-        guard let last = paths.popLast() else { return }
-        redoStack.append(last)
-    }
-
-    private func redo() {
-        guard let last = redoStack.popLast() else { return }
-        paths.append(last)
-    }
-
-    private func updateRecentColors(_ color: Color) {
-        guard !defaultColors.contains(color) else { return }
-        recentColors.removeAll { $0 == color }
-        recentColors.insert(color, at: 0)
-        if recentColors.count > 8 {
-            recentColors = Array(recentColors.prefix(8))
+        .frame(minWidth: 600, minHeight: 500)
+        .focusable()
+        .onAppear {
+            undoManager?.registerUndo(withTarget: viewModel) { _ in }
+        }
+        .onCommand(#selector(UndoManager.undo)) {
+            viewModel.undo(using: undoManager)
+        }
+        .onCommand(#selector(UndoManager.redo)) {
+            viewModel.redo(using: undoManager)
         }
     }
 }
