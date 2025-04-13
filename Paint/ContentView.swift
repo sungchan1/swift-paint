@@ -1,16 +1,18 @@
 import SwiftUI
+
 struct ContentView: View {
     @Environment(\.undoManager) private var undoManager
     @StateObject private var viewModel = DrawingViewModel()
     @State private var selectedColor: Color = .black
-    @State private var currentPoints: [CGPoint] = []
+    @State private var recentColors: [Color] = []
 
     let defaultColors: [Color] = [.black, .red, .blue, .green, .orange, .purple, .yellow, .gray]
 
     var body: some View {
         VStack {
-            // 색상 선택
-            HStack {
+            // 🎨 색상 선택 (기본 + 최근 + 컬러피커)
+            HStack(spacing: 8) {
+                // 기본 색상
                 ForEach(defaultColors, id: \.self) { color in
                     Circle()
                         .fill(color)
@@ -20,10 +22,46 @@ struct ContentView: View {
                         }
                         .overlay(
                             Circle()
-                                .stroke(selectedColor == color ? Color.primary : Color.clear, lineWidth: 2)
+                                .stroke(selectedColor == color ? Color.primary : .clear, lineWidth: 2)
                         )
                 }
+
+                Divider().frame(height: 24)
+
+                // 최근 색상
+                ForEach(0..<8, id: \.self) { index in
+                    let color = index < recentColors.count ? recentColors[index] : nil
+
+                    Circle()
+                        .fill(color ?? Color.clear)
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            Group {
+                                if let color = color {
+                                    Circle().stroke(selectedColor == color ? Color.primary : .gray, lineWidth: 1)
+                                } else {
+                                    Circle().stroke(Color.gray.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2]))
+                                }
+                            }
+                        )
+                        .onTapGesture {
+                            if let color = color {
+                                selectedColor = color
+                            }
+                        }
+                }
+
+                // 컬러 피커
+                ColorPicker("", selection: $selectedColor, supportsOpacity: true)
+                    .labelsHidden()
+                    .frame(width: 24, height: 24)
+                    .onChange(of: selectedColor) {
+                        updateRecentColors($0)
+                    }
             }
+            .padding()
+
+            // ↩️ Undo / Redo 버튼
             HStack {
                 Button("Undo") {
                     viewModel.undo(using: undoManager)
@@ -35,31 +73,17 @@ struct ContentView: View {
                 }
                 .disabled(!viewModel.canRedo)
             }
-            
-            
-            .padding()
+            .padding(.bottom)
 
-            // 그림 영역
-            ZStack {
-                ForEach(viewModel.paths) { path in
-                    Path { p in p.addLines(path.points) }
-                        .stroke(path.color, lineWidth: 2)
+            // 🎨 캔버스 뷰
+            CanvasView(
+                paths: $viewModel.paths,
+                selectedColor: selectedColor,
+                lineWidth: 2,
+                onDrawingEnded: { newPath in
+                    viewModel.addPath(newPath, using: undoManager)
+                    updateRecentColors(selectedColor)
                 }
-
-                Path { p in p.addLines(currentPoints) }
-                    .stroke(selectedColor, lineWidth: 2)
-            }
-            .background(Color.white)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        currentPoints.append(value.location)
-                    }
-                    .onEnded { _ in
-                        let newPath = DrawingPath(points: currentPoints, color: selectedColor, lineWidth: 2)
-                        viewModel.addPath(newPath, using: undoManager)
-                        currentPoints = []
-                    }
             )
             .border(Color.gray)
         }
@@ -74,6 +98,16 @@ struct ContentView: View {
         }
         .onCommand(#selector(UndoManager.redo)) {
             viewModel.redo(using: undoManager)
+        }
+    }
+
+    private func updateRecentColors(_ color: Color) {
+        guard !defaultColors.contains(color) else { return }
+        if let first = recentColors.first, first == color { return }
+        recentColors.removeAll { $0 == color }
+        recentColors.insert(color, at: 0)
+        if recentColors.count > 8 {
+            recentColors = Array(recentColors.prefix(8))
         }
     }
 }
