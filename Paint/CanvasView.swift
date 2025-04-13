@@ -20,7 +20,6 @@ struct CanvasView: View {
             Path { p in p.addLines(currentPoints) }
                 .stroke(selectedColor, lineWidth: lineWidth)
         }
-
         .background(Color.white)
         .gesture(
             DragGesture(minimumDistance: 0)

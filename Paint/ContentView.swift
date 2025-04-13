@@ -43,6 +43,7 @@ struct ContentView: View {
 
                 // 최근 색상
                 ForEach(0 ..< 8, id: \.self) { index in
+
                     let color = index < recentColors.count ? recentColors[index] : nil
 
                     Circle()
@@ -65,8 +66,6 @@ struct ContentView: View {
                 }
 
                 // 컬러 피커
-                Divider().frame(height: 24)
-
                 ColorPicker("", selection: $selectedColor, supportsOpacity: true)
                     .labelsHidden()
                     .frame(width: 24, height: 24)
