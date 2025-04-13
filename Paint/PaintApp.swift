@@ -5,6 +5,7 @@
 //  Created by 여성찬 on 4/12/25.
 //
 
+// PaintApp.swift
 import SwiftUI
 
 @main
