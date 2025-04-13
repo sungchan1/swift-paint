@@ -5,8 +5,7 @@ struct ContentView: View {
     @StateObject private var viewModel = DrawingViewModel()
     @State private var selectedColor: Color = .black
     @State private var recentColors: [Color] = []
-    
-    
+
     private var canvasSection: some View {
         CanvasView(
             paths: $viewModel.paths,
@@ -19,7 +18,6 @@ struct ContentView: View {
         )
         .border(Color.gray)
     }
-    
 
     let defaultColors: [Color] = [.black, .red, .blue, .green, .orange, .purple, .yellow, .gray]
 
@@ -44,7 +42,7 @@ struct ContentView: View {
                 Divider().frame(height: 24)
 
                 // 최근 색상
-                ForEach(0..<8, id: \.self) { index in
+                ForEach(0 ..< 8, id: \.self) { index in
                     let color = index < recentColors.count ? recentColors[index] : nil
 
                     Circle()
@@ -89,13 +87,16 @@ struct ContentView: View {
                     viewModel.redo(using: undoManager)
                 }
                 .disabled(!viewModel.canRedo)
+                Button("Clear") {
+                    viewModel.clear(using: undoManager)
+                }
+                .disabled(viewModel.paths.isEmpty)
             }
             .padding(.bottom)
-            
 
             // 🎨 캔버스 뷰
             canvasSection
-            .border(Color.gray)
+                .border(Color.gray)
         }
         .padding()
         .frame(minWidth: 600, minHeight: 500)

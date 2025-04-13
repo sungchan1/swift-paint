@@ -34,9 +34,26 @@ class DrawingViewModel: ObservableObject {
             target.undo(using: undoManager)
         }
     }
-    
+
+    func clear(using undoManager: UndoManager?) {
+        let oldPaths = paths
+        paths.removeAll()
+
+        undoManager?.registerUndo(withTarget: self) { target in
+            target.restore(oldPaths, using: undoManager)
+        }
+    }
+
+    private func restore(_ savedPaths: [DrawingPath], using undoManager: UndoManager?) {
+        let current = paths
+        paths = savedPaths
+
+        undoManager?.registerUndo(withTarget: self) { target in
+            target.restore(current, using: undoManager)
+        }
+    }
+
     var canRedo: Bool {
         !redoStack.isEmpty
     }
-    
 }
